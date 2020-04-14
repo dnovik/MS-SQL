@@ -1,13 +1,3 @@
-select * from [Application].[TransactionTypes]
-select top 10 * from [Sales].[BuyingGroups]
-select top 10 * from [Purchasing].[PurchaseOrders]
-select top 10 * from [Purchasing].[SupplierTransactions]
-select top 10 * from [Sales].[Customers]
-select top 10 * from [Sales].[CustomerTransactions]
-select top 10 * from [Sales].[InvoiceLines]
-select top 10 * from [Sales].[Orders]
-select top 10 * from [Sales].[OrderLines]
-select top 10 * from [Sales].[SpecialDeals]
 select top 10 * from [Warehouse].[StockItemTransactions]
 select top 10 * from [Warehouse].[PackageTypes]
 select top 10 * from [Warehouse].[StockItemHoldings]
@@ -23,6 +13,7 @@ select * from [Application].[PaymentMethods]
 select top 10 * from [Application].[People]
 select top 10 * from [Application].[StateProvinces]
 select top 10 * from [Application].[SystemParameters]
+select * from [Application].[TransactionTypes]
 select top 10 * from [Purchasing].[PurchaseOrderLines]
 select top 10 * from [Purchasing].[PurchaseOrders]
 select * from [Purchasing].[SupplierCategories]
@@ -61,8 +52,6 @@ having count(b.SupplierTransactionID) = 0
 --Соритровка должна быть по номеру квартала, трети года, дате продажи.
 
 
-select top 10 * from [Sales].[CustomerTransactions]
-
 select 
 	[TransactionDate], 
 	DATENAME(MONTH, [TransactionDate]) as [MonthName],
@@ -75,3 +64,8 @@ select
 	TransactionAmount
 from [Sales].[CustomerTransactions]
 order by [Quarter], [Part], [TransactionDate]
+
+
+
+select top 10 * from [Sales].[Orders]
+select top 10 * from [Sales].[CustomerTransactions]
