@@ -1,87 +1,84 @@
---Поставщики, у которых не было сделано ни одного заказа
-select a.SupplierName, count(b.SupplierTransactionID) as CntTransactions
-from [Purchasing].[Suppliers] a left join
-(select SupplierID, SupplierTransactionID from [Purchasing].[SupplierTransactions]) b on b.SupplierID = a.SupplierID
-group by a.SupplierID, a.SupplierName
-having count(b.SupplierTransactionID) = 0
+
+--1. Все товары, в которых в название есть пометка urgent или название начинается с Animal
+select StockItemName from Warehouse.StockItems
+where StockItemName like 'Animal%' or StockItemName like '%urgent%'
 
 
---Продажи с названием месяца, в котором была продажа, номером квартала, к которому относится продажа, 
+--2. Поставщики, у которых не было сделано ни одного заказа
+select supp.SupplierName, count(sutr.SupplierTransactionID) as CntTransactions
+from [Purchasing].[Suppliers] supp 
+left join [Purchasing].[SupplierTransactions] sutr on sutr.SupplierID = supp.SupplierID
+group by supp.SupplierID, supp.SupplierName
+having count(sutr.SupplierTransactionID) = 0
+
+
+--3.1. Продажи с названием месяца, в котором была продажа, номером квартала, к которому относится продажа, 
 --включите также к какой трети года относится дата - каждая треть по 4 месяца, 
 --дата забора заказа должна быть задана, с ценой товара более 100$ либо количество единиц товара более 20. 
 select 
-	[TransactionDate], 
-	DATENAME(MONTH, [TransactionDate]) as [MonthName],
-	DATENAME(QUARTER, [TransactionDate]) as [Quarter],
-	CASE 
-	WHEN MONTH([TransactionDate]) in (1,2,3,4) THEN 1
-	WHEN MONTH([TransactionDate]) in (5,6,7,8) THEN 2
-	WHEN MONTH([TransactionDate]) in (9,10,11,12) THEN 3
-	END as [Part],
-	c.PickingCompletedWhen as PickingDate,
-	TransactionAmount
-from [Sales].[CustomerTransactions] as a left join
-(select InvoiceID, OrderID from [Sales].[Invoices]) as b on b.InvoiceID = a.InvoiceID left join
-(select OrderID, PickingCompletedWhen from [Sales].[OrderLines] 
-where UnitPrice > 100 or Quantity > 20 and PickingCompletedWhen is not null) as c on c.OrderID = b.OrderID
+	ct.TransactionDate, 
+	DATENAME(MONTH, ct.TransactionDate) as [MonthName],
+	DATENAME(QUARTER, ct.TransactionDate) as [Quarter],
+	CEILING(MONTH(ct.TransactionDate) / 4.00) as [Part],
+	ol.PickingCompletedWhen as PickingDate,
+	ct.TransactionAmount
+from [Sales].[CustomerTransactions] as ct
+inner join Sales.Invoices as inv on inv.InvoiceID = ct.InvoiceID 
+inner join Sales.OrderLines as ol on ol.OrderID = inv.OrderID
+where ol.UnitPrice > 100 or ol.Quantity > 20 and ol.PickingCompletedWhen is not null
 
 
---Добавьте вариант этого запроса с постраничной выборкой пропустив первую 1000 и отобразив следующие 100 записей. 
+--3.2. Добавьте вариант этого запроса с постраничной выборкой пропустив первую 1000 и отобразив следующие 100 записей. 
 --Соритровка должна быть по номеру квартала, трети года, дате продажи.
 select 
-	[TransactionDate], 
-	DATENAME(MONTH, [TransactionDate]) as [MonthName],
-	DATENAME(QUARTER, [TransactionDate]) as [Quarter],
-	CASE 
-	WHEN MONTH([TransactionDate]) in (1,2,3,4) THEN 1
-	WHEN MONTH([TransactionDate]) in (5,6,7,8) THEN 2
-	WHEN MONTH([TransactionDate]) in (9,10,11,12) THEN 3
-	END as [Part],
-	c.PickingCompletedWhen as PickingDate,
-	TransactionAmount
-from [Sales].[CustomerTransactions] as a left join
-(select InvoiceID, OrderID from [Sales].[Invoices]) as b on b.InvoiceID = a.InvoiceID left join
-(select OrderID, PickingCompletedWhen from [Sales].[OrderLines] 
-where UnitPrice > 100 or Quantity > 20 and PickingCompletedWhen is not null) as c on c.OrderID = b.OrderID
+	ct.TransactionDate, 
+	DATENAME(MONTH, ct.TransactionDate) as [MonthName],
+	DATENAME(QUARTER, ct.TransactionDate) as [Quarter],
+	CEILING(MONTH(ct.TransactionDate) / 4.00) as [Part],
+	ol.PickingCompletedWhen as PickingDate,
+	ct.TransactionAmount
+from [Sales].[CustomerTransactions] as ct
+inner join Sales.Invoices as inv on inv.InvoiceID = ct.InvoiceID 
+inner join Sales.OrderLines as ol on ol.OrderID = inv.OrderID
+where ol.UnitPrice > 100 or ol.Quantity > 20 and ol.PickingCompletedWhen is not null
 order by [Quarter], [Part], [TransactionDate]
 offset 1000 rows fetch next 100 rows only
 
 
--- Заказы поставщикам, которые были исполнены за 2014й год с доставкой Road Freight или Post, 
+-- 4. Заказы поставщикам, которые были исполнены за 2014й год с доставкой Road Freight или Post, 
 --добавьте название поставщика, имя контактного лица принимавшего заказ
 select
-	c.SupplierName as SupplierName,
-	d.FullName as ContactPerson,
-	count(PurchaseOrderID) as CntPurchaseOrders
-from [Purchasing].[PurchaseOrders] as a left join
-(select DeliveryMethodID, DeliveryMethodName from [Application].[DeliveryMethods] 
-where DeliveryMethodName in ('Post', 'Road Freight')) as b on b.DeliveryMethodID = a.DeliveryMethodID left join
-(select SupplierID, SupplierName from [Purchasing].[Suppliers]) as c on c.SupplierID = a.SupplierID left join
-(select PersonID, FullName from [Application].[People]) as d on d.PersonID = a.ContactPersonID
-where YEAR(OrderDate) = '2014'
-group by c.SupplierName, d.FullName
+	supp.SupplierName as 'SupplierName',
+	pe.FullName as 'ContactPerson',
+	count(po.PurchaseOrderID) as 'CntPurchaseOrders'
+from [Purchasing].[PurchaseOrders] as po 
+inner join [Application].[DeliveryMethods] as dm on dm.DeliveryMethodID = po.DeliveryMethodID 
+inner join [Purchasing].[Suppliers] as supp on supp.SupplierID = po.SupplierID 
+inner join [Application].[People] as pe on pe.PersonID = po.ContactPersonID
+where YEAR(po.ExpectedDeliveryDate) = '2014' and dm.DeliveryMethodName in ('Post', 'Road Freight')
+group by supp.SupplierName, pe.FullName
 
 
---10 последних по дате продаж с именем клиента и именем сотрудника, который оформил заказ
+--5. 10 последних по дате продаж с именем клиента и именем сотрудника, который оформил заказ
 select top 10 
 	c.CustomerName as Customer,
-	d.FullName as Employee,
+	pe.FullName as Employee,
 	a.TransactionAmount
-from [Sales].[CustomerTransactions] as a left join
-(select InvoiceID, ContactPersonID from [Sales].[Invoices]) as b on b.InvoiceID = a.InvoiceID left join
-(select CustomerID, CustomerName from [Sales].[Customers]) as c on c.CustomerID = a.CustomerID left join
-(select PersonID, FullName from [Application].[People]) as d on d.PersonID = b.ContactPersonID
+from [Sales].[CustomerTransactions] as a 
+inner join [Sales].[Invoices] as inv on inv.InvoiceID = a.InvoiceID 
+inner join [Sales].[Customers] as c on c.CustomerID = a.CustomerID 
+inner join [Application].[People] as pe on pe.PersonID = inv.ContactPersonID
 order by TransactionDate desc
 
 
---Все ид и имена клиентов и их контактные телефоны, которые покупали товар Chocolate frogs 250g
+--6. Все ид и имена клиентов и их контактные телефоны, которые покупали товар Chocolate frogs 250g
 select 
-	a.CustomerID,
-	b.CustomerName,
-	b.PhoneNumber,
-	b.FaxNumber
-from [Sales].[Orders] as a inner join
-(select CustomerID, CustomerName, PhoneNumber, FaxNumber from [Sales].[Customers_Archive]) as b on b.CustomerID = a.CustomerID left join
-(select OrderID, StockItemID from [Sales].[OrderLines]) as c on c.OrderID = a.OrderID left join
-(select StockItemID, StockItemName from [Warehouse].[StockItems] where StockItemName = 'Chocolate frogs 250g') as d on d.StockItemID = c.StockItemID
-where d.StockItemName = 'Chocolate frogs 250g'
+	o.CustomerID,
+	c.CustomerName,
+	c.PhoneNumber,
+	c.FaxNumber
+from [Sales].[Orders] as o 
+inner join Sales.Customers as c on c.CustomerID = o.CustomerID 
+inner join Sales.OrderLines as ol on ol.OrderID = o.OrderID 
+inner join Warehouse.StockItems as si on si.StockItemID = ol.StockItemID
+where si.StockItemName = 'Chocolate frogs 250g'
