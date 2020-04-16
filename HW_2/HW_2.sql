@@ -1,7 +1,6 @@
 
 
---3. Выберите информацию по клиентам, которые перевели компании 5 максимальных платежей из [Sales].[CustomerTransactions] 
---представьте 3 способа (в том числе с CTE)
+
 --4. Выберите города (ид и название), в которые были доставлены товары, входящие в тройку самых дорогих товаров, 
 --а также Имя сотрудника, который осуществлял упаковку заказов
 
@@ -13,12 +12,13 @@ select SalespersonPersonID from Sales.Orders)
 
 --2. Выберите товары с минимальной ценой (подзапросом), 2 варианта подзапроса.
 select StockItemName, UnitPrice from Warehouse.StockItems
-where exists (select min(UnitPrice) from Warehouse.StockItems)
+where UnitPrice in (select min(UnitPrice) from Warehouse.StockItems)
 
-select 
-	StockItemName,
-	(select min(UnitPrice) from Warehouse.StockItems) as min_price
-from Warehouse.StockItems
+select StockItemName, UnitPrice from Warehouse.StockItems
+where UnitPrice = (select min(UnitPrice) from Warehouse.StockItems)
+
+--3. Выберите информацию по клиентам, которые перевели компании 5 максимальных платежей из [Sales].[CustomerTransactions] 
+--представьте 3 способа (в том числе с CTE)
 
 
 
