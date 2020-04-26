@@ -1,7 +1,42 @@
 ﻿-- 1. Посчитать среднюю цену товара, общую сумму продажи по месяцам
+select
+	MONTH(i.InvoiceDate) as SalesMonth,
+	avg(il.UnitPrice) as AvgPrice,
+	sum(il.Quantity * il.UnitPrice) as TotalSales
+from Sales.InvoiceLines il
+inner join Sales.Invoices i
+on i.InvoiceID=il.InvoiceID
+group by MONTH(i.InvoiceDate)
+order by MONTH(i.InvoiceDate)
+
+
 -- 2. Отобразить все месяцы, где общая сумма продаж превысила 10 000
+select
+	MONTH(i.InvoiceDate) as SalesMonth,
+	avg(il.UnitPrice) as AvgPrice,
+	sum(il.Quantity * il.UnitPrice) as TotalSales
+from Sales.InvoiceLines il
+inner join Sales.Invoices i
+on i.InvoiceID=il.InvoiceID
+group by MONTH(i.InvoiceDate)
+having sum(il.Quantity * il.UnitPrice) > 10000
+order by MONTH(i.InvoiceDate)
+
 -- 3. Вывести сумму продаж, дату первой продажи и количество проданного по месяцам, по товарам, продажи которых менее 50 ед в месяц.
 --Группировка должна быть по году и месяцу.
+
+select
+	il.StockItemID,
+	sum(il.Quantity * il.UnitPrice) as TotalSales,
+	min(i.InvoiceDate) as FirstSalesDate,
+	sum(il.Quantity) as SalesQty
+from Sales.InvoiceLines il
+inner join Sales.Invoices i
+on i.InvoiceID=il.InvoiceID
+group by rollup (MONTH(i.InvoiceDate), YEAR(i.InvoiceDate), il.StockItemID)
+having sum(il.Quantity) < 50
+
+
 --4. Написать рекурсивный CTE sql запрос и заполнить им временную таблицу и табличную переменную
 /*
 Дано :
@@ -37,8 +72,34 @@ EmployeeID Name Title EmployeeLevel
 275 | | | Michael Blythe Sales Representative 4
 285 | | Syed Abbas Pacific Sales Manager 3
 286 | | | Lynn Tsoflias Sales Representative 4
-
-
-Опционально:
-Написать все эти же запросы, но, если за какой-то месяц не было продаж, то этот месяц тоже должен быть в результате и там должны быть нули.
 */
+
+
+with hier_cte as (
+select 
+	EmployeeID, 
+	(FirstName + ' ' + LastName) as [Name],
+	Title,
+	cast('' as text) as Manager,
+	1 as EmployeeLevel,
+	ManagerID
+from dbo.MyEmployees
+where ManagerID is null
+	union all
+select
+	t1.EmployeeID,
+	(t1.FirstName + ' ' + t1.LastName) as [Name],
+	t1.Title,
+	cast((t1.FirstName + ' ' + t1.LastName) as text) as Manager,
+	t2.EmployeeLevel + 1,
+	t1.ManagerID
+from dbo.MyEmployees t1
+inner join hier_cte t2
+on t2.EmployeeID=t1.ManagerID
+)
+select 
+	EmployeeID,
+	[Name],
+	Title,
+	EmployeeLevel
+from hier_cte
