@@ -1,26 +1,28 @@
 ﻿-- 1. Посчитать среднюю цену товара, общую сумму продажи по месяцам
 select
+	YEAR(i.InvoiceDate) as SalesYear,
 	MONTH(i.InvoiceDate) as SalesMonth,
 	avg(il.UnitPrice) as AvgPrice,
 	sum(il.Quantity * il.UnitPrice) as TotalSales
 from Sales.InvoiceLines il
 inner join Sales.Invoices i
 on i.InvoiceID=il.InvoiceID
-group by MONTH(i.InvoiceDate)
-order by MONTH(i.InvoiceDate)
+group by YEAR(i.InvoiceDate), MONTH(i.InvoiceDate)
+order by YEAR(i.InvoiceDate), MONTH(i.InvoiceDate)
 
 
 -- 2. Отобразить все месяцы, где общая сумма продаж превысила 10 000
 select
+	YEAR(i.InvoiceDate) as SalesYear,
 	MONTH(i.InvoiceDate) as SalesMonth,
 	avg(il.UnitPrice) as AvgPrice,
 	sum(il.Quantity * il.UnitPrice) as TotalSales
 from Sales.InvoiceLines il
 inner join Sales.Invoices i
 on i.InvoiceID=il.InvoiceID
-group by MONTH(i.InvoiceDate)
+group by YEAR(i.InvoiceDate), MONTH(i.InvoiceDate)
 having sum(il.Quantity * il.UnitPrice) > 10000
-order by MONTH(i.InvoiceDate)
+order by YEAR(i.InvoiceDate), MONTH(i.InvoiceDate)
 
 -- 3. Вывести сумму продаж, дату первой продажи и количество проданного по месяцам, по товарам, продажи которых менее 50 ед в месяц.
 --Группировка должна быть по году и месяцу.
@@ -80,9 +82,9 @@ select
 	EmployeeID, 
 	(FirstName + ' ' + LastName) as [Name],
 	Title,
-	cast('' as text) as Manager,
 	1 as EmployeeLevel,
-	ManagerID
+	ManagerID,
+	cast('' as nvarchar)  as [path]
 from dbo.MyEmployees
 where ManagerID is null
 	union all
@@ -90,16 +92,19 @@ select
 	t1.EmployeeID,
 	(t1.FirstName + ' ' + t1.LastName) as [Name],
 	t1.Title,
-	cast((t1.FirstName + ' ' + t1.LastName) as text) as Manager,
 	t2.EmployeeLevel + 1,
-	t1.ManagerID
+	t1.ManagerID,
+	cast((t2.[path] + '  |  ') as nvarchar) as [path]
 from dbo.MyEmployees t1
 inner join hier_cte t2
 on t2.EmployeeID=t1.ManagerID
 )
 select 
 	EmployeeID,
-	[Name],
+	[path] + [Name] as [Name],
 	Title,
 	EmployeeLevel
 from hier_cte
+group by 
+grouping sets((EmployeeID, ([path] + [Name]),
+	Title, EmployeeLevel))
